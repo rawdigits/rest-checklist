@@ -3,6 +3,8 @@
 import json
 import glob
 import os
+import hashlib
+import time
 from flask import Flask, session, redirect, url_for, escape, request, jsonify, abort
 
 DATA_DIR = "data/"
@@ -89,6 +91,14 @@ def authenticate(request):
     if config["tokens"].count(token) == 0:
         abort(401)
 
+def check_token(request, csrf_token):
+    token = request.args.get('token')
+    csrf_time, csrf_hash = csrf_token.split("!")
+    if csrf_hash == hashlib.sha256(csrf_time + token).hexdigest():
+        return True
+    else:
+        return False
+
 def lists():
     lists=glob.glob(DATA_DIR + "/*")
     lists = [os.path.basename(x) for x in lists]
@@ -98,6 +108,19 @@ def lists():
 @app.route('/')
 def index():
     return ""
+
+@app.route('/gettoken')
+def get_token():
+    now = int(time.time())
+    authenticate(request)
+    token = request.args.get('token')
+    csrf_token = hashlib.sha256(str(now) + token).hexdigest()
+    return "{}!{}".format(now,csrf_token)
+
+@app.route('/checktoken/<csrf_token>')
+def checks_token(csrf_token):
+    authenticate(request)
+    return str(check_token(request, csrf_token))
 
 @app.route('/lists')
 def show_lists():
@@ -168,6 +191,21 @@ def delete_item(list_name, item):
     write_list(list_name, items)
     return jsonify(ok=True, data=items.get_all())
 
+@app.route('/lists/<list_name>/unchecked')
+def get_unchecked(list_name):
+    authenticate(request)
+    data = read_list(list_name)
+    return jsonify(ok=True, data=data.get_unchecked())
+
+@app.route('/lists/<list_name>/checked')
+def get_checked(list_name):
+    authenticate(request)
+    data = read_list(list_name)
+    return jsonify(ok=True, data=data.get_checked())
+
+@app.route('/lists/<list_name>/archive_done')
+def archive_done(list_name):
+    pass
 
 
 if __name__ == '__main__':
