@@ -45,6 +45,9 @@ class List(object):
     def add_item(self, item):
         if not item in self.items:
             self.items.append(Item("-", item))
+    def delete_item(self, item):
+        if item in self.items:
+            self.items.pop(self.items.index(item))
     def get_checked(self):
         output = []
         for item in self.items:
@@ -155,6 +158,16 @@ def ucomplete_item(list_name, item):
         items[item].set_unchecked()
     write_list(list_name, items)
     return jsonify(ok=True, data=items.get_all())
+
+@app.route('/lists/<list_name>/delete/<path:item>')
+def delete_item(list_name, item):
+    authenticate(request)
+    items = read_list(list_name)
+    if item in items:
+        items.delete_item(item)
+    write_list(list_name, items)
+    return jsonify(ok=True, data=items.get_all())
+
 
 
 if __name__ == '__main__':
