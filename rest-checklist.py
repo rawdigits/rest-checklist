@@ -60,7 +60,7 @@ class List(object):
     def get_all(self):
         output = []
         for item in self.items:
-            output.append([item.get_item()])
+            output.append(item.get_item())
         return output
     def human_readable(self):
         output = ""
