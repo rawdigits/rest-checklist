@@ -91,12 +91,19 @@ def authenticate(request):
     if config["tokens"].count(token) == 0:
         abort(401)
 
-def check_token(request, csrf_token):
+def check_token(request):
+    csrf_token = request.form["csrf_token"]
     token = request.args.get('token')
     csrf_time, csrf_hash = csrf_token.split("!")
+    #check token isn't expired
+    if int(time.time()) > int(csrf_time) + 600: #10 mins
+        abort(401)
+        return False
+    #check token is valid
     if csrf_hash == hashlib.sha256(csrf_time + token).hexdigest():
         return True
     else:
+        abort(401)
         return False
 
 def lists():
@@ -117,10 +124,10 @@ def get_token():
     csrf_token = hashlib.sha256(str(now) + token).hexdigest()
     return "{}!{}".format(now,csrf_token)
 
-@app.route('/checktoken/<csrf_token>')
-def checks_token(csrf_token):
+@app.route('/checktoken', methods = ["POST"])
+def checks_token():
     authenticate(request)
-    return str(check_token(request, csrf_token))
+    return str(check_token(request))
 
 @app.route('/lists')
 def show_lists():
@@ -138,6 +145,7 @@ def get_list(list_name):
 def add_list():
     authenticate(request)
     if request.method == "POST":
+        check_token(request)
         list_name = request.form["list_name"]
         if not list_name in lists():
             write_list(list_name, List(""))
@@ -153,6 +161,7 @@ def add_list():
 def add_to_list(list_name):
     authenticate(request)
     if request.method == "POST":
+        check_token(request)
         items = read_list(list_name)
         items.add_item(request.form["item"])
         write_list(list_name, items)
@@ -182,14 +191,22 @@ def ucomplete_item(list_name, item):
     write_list(list_name, items)
     return jsonify(ok=True, data=items.get_all())
 
-@app.route('/lists/<list_name>/delete/<path:item>')
-def delete_item(list_name, item):
+@app.route('/lists/<list_name>/delete', methods = ["GET", "POST"])
+def delete_item(list_name):
     authenticate(request)
+    check_token(request)
     items = read_list(list_name)
+    item = request.form["item"]
     if item in items:
         items.delete_item(item)
     write_list(list_name, items)
     return jsonify(ok=True, data=items.get_all())
+    return '''
+        <form action="" method="post">
+            <p><input type=text name=item>
+            <p><input type=submit value=add>
+        </form>
+        '''
 
 @app.route('/lists/<list_name>/unchecked')
 def get_unchecked(list_name):
