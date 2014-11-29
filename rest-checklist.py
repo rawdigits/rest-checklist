@@ -1,10 +1,13 @@
 #!/usr/bin/env python
 
+from functools import wraps
+
 import json
 import glob
 import os
 import hashlib
 import time
+import urllib
 from flask import Flask, session, redirect, url_for, escape, request, jsonify, abort
 
 DATA_DIR = "data/"
@@ -86,10 +89,16 @@ def write_list(list_name, list_obj):
     except:
         pass
 
-def authenticate(request):
-    token = request.args.get('token')
-    if config["tokens"].count(token) == 0:
-        abort(401)
+def authenticate(func):
+    @wraps(func)
+    def do_auth(*args, **kwargs):
+        print 'hi'
+        print request
+        token = request.args.get('token')
+        if config["tokens"].count(token) == 0:
+            abort(401)
+        return func(*args, **kwargs)
+    return do_auth
 
 def check_token(request):
     csrf_token = request.form["csrf_token"]
@@ -117,33 +126,33 @@ def index():
     return ""
 
 @app.route('/gettoken')
+@authenticate
 def get_token():
     now = int(time.time())
-    authenticate(request)
     token = request.args.get('token')
     csrf_token = hashlib.sha256(str(now) + token).hexdigest()
     return "{}!{}".format(now,csrf_token)
 
 @app.route('/checktoken', methods = ["POST"])
+@authenticate
 def checks_token():
-    authenticate(request)
     return str(check_token(request))
 
 @app.route('/lists')
+@authenticate
 def show_lists():
-    authenticate(request)
     return jsonify(lists=lists())
 
 
 @app.route('/lists/<list_name>')
+@authenticate
 def get_list(list_name):
-    authenticate(request)
     data = read_list(list_name)
     return jsonify(ok=True, data=data.get_all())
 
 @app.route('/lists/add', methods = ["GET", "POST"])
+@authenticate
 def add_list():
-    authenticate(request)
     if request.method == "POST":
         check_token(request)
         list_name = request.form["list_name"]
@@ -158,8 +167,8 @@ def add_list():
         '''
 
 @app.route('/lists/<list_name>/add', methods = ["GET", "POST"])
+@authenticate
 def add_to_list(list_name):
-    authenticate(request)
     if request.method == "POST":
         check_token(request)
         items = read_list(list_name)
@@ -174,8 +183,8 @@ def add_to_list(list_name):
         '''
 
 @app.route('/lists/<list_name>/done/<path:item>')
+@authenticate
 def complete_item(list_name, item):
-    authenticate(request)
     items = read_list(list_name)
     if item in items:
         items[item].set_checked()
@@ -183,8 +192,8 @@ def complete_item(list_name, item):
     return jsonify(ok=True, data=items.get_all())
 
 @app.route('/lists/<list_name>/undone/<path:item>')
+@authenticate
 def ucomplete_item(list_name, item):
-    authenticate(request)
     items = read_list(list_name)
     if item in items:
         items[item].set_unchecked()
@@ -192,8 +201,8 @@ def ucomplete_item(list_name, item):
     return jsonify(ok=True, data=items.get_all())
 
 @app.route('/lists/<list_name>/delete', methods = ["GET", "POST"])
+@authenticate
 def delete_item(list_name):
-    authenticate(request)
     check_token(request)
     items = read_list(list_name)
     item = request.form["item"]
@@ -209,14 +218,14 @@ def delete_item(list_name):
         '''
 
 @app.route('/lists/<list_name>/unchecked')
+@authenticate
 def get_unchecked(list_name):
-    authenticate(request)
     data = read_list(list_name)
     return jsonify(ok=True, data=data.get_unchecked())
 
 @app.route('/lists/<list_name>/checked')
+@authenticate
 def get_checked(list_name):
-    authenticate(request)
     data = read_list(list_name)
     return jsonify(ok=True, data=data.get_checked())
 
