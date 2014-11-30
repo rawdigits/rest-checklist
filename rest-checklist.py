@@ -185,6 +185,7 @@ def add_to_list(list_name):
 @app.route('/lists/<list_name>/done/<path:item>')
 @authenticate
 def complete_item(list_name, item):
+    item = urllib.unquote(item)
     items = read_list(list_name)
     if item in items:
         items[item].set_checked()
