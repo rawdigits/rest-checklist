@@ -92,7 +92,6 @@ def write_list(list_name, list_obj):
 def authenticate(func):
     @wraps(func)
     def do_auth(*args, **kwargs):
-        print 'hi'
         print request
         token = request.args.get('token')
         if config["tokens"].count(token) == 0:
