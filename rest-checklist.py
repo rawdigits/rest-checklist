@@ -25,6 +25,11 @@ class Item(object):
             return True
         else:
             return False
+    def __lt__(self, other):
+        if self.state == '-' and other.state == 'x':
+            return True
+        else:
+            return False
     def __str__(self):
         return "{} {}".format(self.state, self.data)
     def __repr__(self):
@@ -75,6 +80,8 @@ class List(object):
         for d in self.items:
             output += "{}\n".format(d)
         return output
+    def append_checked(self):
+        self.items.sort()
 
 def read_list(list_name):
     try:
@@ -92,7 +99,6 @@ def write_list(list_name, list_obj):
 def authenticate(func):
     @wraps(func)
     def do_auth(*args, **kwargs):
-        print request
         token = request.args.get('token')
         if config["tokens"].count(token) == 0:
             abort(401)
@@ -188,6 +194,7 @@ def complete_item(list_name, item):
     items = read_list(list_name)
     if item in items:
         items[item].set_checked()
+    items.append_checked()
     write_list(list_name, items)
     return jsonify(ok=True, data=items.get_all())
 
